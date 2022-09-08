@@ -1,0 +1,27 @@
+#include "server.hpp"
+#include "ui_server.h"
+
+// Конструктор класса Server
+Server::Server(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::Server)
+{
+    ui->setupUi(this);
+    server = new QTcpServer(this);
+    
+    connect(server, )
+}
+
+Server::~Server()
+{
+    delete ui;
+    delete server;
+}
+
+// №№№№ Ниже определена функция-слот. То есть при нажатии на клавишу (то есть нажатие - это сигнал)
+// №№№№ данная функция-слот будет этот сигнал обрабатывать
+void Server::on_launchButton_clicked()
+{
+    QString portNumberStr   = ui->portNumberEdit->text();
+    int portNumber          = portNumberStr.toInt();
+}
