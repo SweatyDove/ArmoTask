@@ -7,10 +7,7 @@
 #include <QTcpSocket>
 #include <QThread>
 #include <QDesktopServices>
-
-//#include <QGraphicsScene>
-//#include <QGraphicsView>
-//#include <QGraphicsPixmapItem>
+#include <QUrl>
 
 
 

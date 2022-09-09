@@ -81,14 +81,24 @@ void MyServer::setConnection()
             }
 
             image->close();
-            QFileInfo fileInfo(image->fileName());
-            QDesktopServices::openUrl();
 
-//            QGraphicsScene scene;
-//            QGraphicsView view(&scene);
-//            QGraphicsPixmapItem item(QPixmap("receivedImage"));
-//            scene.addItem(&item);
-//            view.show();
+            // #### Операции по открытию файла
+
+            // #1 Получить абсолютный путь файла
+            QFileInfo fileInfo(image->fileName());
+            QString absFilePath = fileInfo.absoluteFilePath();
+            qDebug() << "Absolute file path: " << absFilePath;
+
+            // #2 Конвертировать в нативный путь для данной ОС
+            QString nativeAbsFilePath = QDir::toNativeSeparators(absFilePath);
+            qDebug() << "Native absolute file path: " << nativeAbsFilePath;
+
+            // #3 Получить из этого пути QURl
+            QUrl fileQUrl = QUrl::fromLocalFile(nativeAbsFilePath);
+            qDebug() << "QUrl of file: " << fileQUrl;
+
+            // #4 Открыть файл стандартными средствами ОС
+            QDesktopServices::openUrl(fileQUrl);
 
         }
         else {} // Nothing to do
@@ -101,8 +111,3 @@ void MyServer::setConnection()
 
     return;
 }
-
-//QString MyServer::convertUrlToNativeFilePath(const QUrl& urlStylePath) const
-//{
-//    return QDir::toNativeSeparators(urlStylePath.toLocalFile());
-//}
