@@ -1,7 +1,9 @@
-#include "my_server.hpp"
-#include "ui_my_server.h"
+#include "myserver.hpp"
+#include "ui_myserver.h"
 
 #define   DEFAULT_PORT      9000
+#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
+
 
 #include <QMessageBox>
 #include <QDir>
@@ -57,16 +59,34 @@ void MyServer::launchServer()
 void MyServer::setConnection()
 {    
     QByteArray buffer;
-    qint64 portion {1024};
+    qint64 portion {2048};
+
 
     // №№№№ Определяем новое соединение
     QTcpSocket* socket {server->nextPendingConnection()};
     if (socket != 0) {
         qDebug() << "Connection with the client established!";
 
-        QFile* image = new QFile("receivedImage");
+        // Сперва получаем имя файла
+        buffer.clear();
+        socket->waitForReadyRead();
+        buffer = socket->readAll();
+        QString qBuffer {buffer};
+        qDebug() << "Received file name: " << qBuffer;
+
+        // Если имя файла получено - создать новый с таким же именем
+        QFile* image = new QFile(qBuffer);
         if (image->open(QFile::Append)) {
 
+            // В случае успеха отправляем сигнал клиенту, что имя получено и  готовы
+            // принять непосредственно файл
+            QString sigFileNameReceived {SIG_FILE_NAME_RECEIVED};
+            buffer.clear();
+            buffer.append(sigFileNameReceived.toLatin1());
+            socket->write(buffer);
+            socket->waitForBytesWritten();
+
+            // Теперь записываем непосредственно файл
             while (true) {
                 buffer.clear();
 
