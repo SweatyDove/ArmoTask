@@ -1,59 +1,71 @@
 #include "sendtaskwindow.hpp"
 #include "ui_sendtaskwindow.h"
 
-#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
-
+// #### Конструктор класса
+// ####
 SendTaskWindow::SendTaskWindow(QWidget *parent, QTcpSocket* socket) :
-    QDialog(parent),
-    ui(new Ui::SendTaskWindow),
-    mb_socket {socket}
+    QDialog             {parent},
+    mb_userInterface    {new Ui::SendTaskWindow},
+    mb_socket           {socket}
 {
-    ui->setupUi(this);
-    connect(ui->browseButton, SIGNAL(clicked()), this, SLOT(browse()));
+    // #1 Инициализируем окно интерфейса и связываем СИГНАЛ от нажатия на клавишу "Browse"
+    // ## с соответствующей функцией-СЛОТОМ
+    mb_userInterface->setupUi(this);
+    connect(mb_userInterface->browseButton, SIGNAL(clicked()), this, SLOT(browse()));
 
 }
 
+// #### Деструктор класса
+// ####
 SendTaskWindow::~SendTaskWindow()
 {
-    delete ui;
+    delete mb_userInterface;
+    if (mb_socket != nullptr) {
+        delete mb_socket;
+    }
+    else {} // Nothing to do
 }
 
 
+// #### Функция-СЛОТ, осуществляющая выбор файла из файловой системы для отправки
+// ####
 void SendTaskWindow::browse()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), QDir::currentPath());
+    QString fileName = QFileDialog::getOpenFileName(this, "Open File", QDir::currentPath());
 
+    // Отправляем файл
     if (!fileName.isEmpty()) {
        qDebug() << "You choose " << fileName;
-       sendImage(fileName);
+       sendFile(fileName);
     }
-    else {}
+    else {} // Nothing to do
 }
 
 
 // Отправка файла (с минимальным контролем ошибок на данный момент)
-bool SendTaskWindow::sendImage(QString fileName)
+bool SendTaskWindow::sendFile(QString fileName)
 {
 
-    QFile* image = new QFile(fileName);
-    qint64  portion {2048};
-    QByteArray  buffer;
+    QFile*      file    {new QFile(fileName)};      // Указатель на файл
+    qint64      portion {2048};                     // Размер порции для отправки через сокет (в байтах)
+    QByteArray  buffer;                             // Буффер, который будет отправляться
 
-    QString sigFileNameReceived {SIG_FILE_NAME_RECEIVED};
+    QString     sigFileNameReceived {SIG_FILE_NAME_RECEIVED};   // Сигнал, говорящий о том, что имя файла сервером получено
+                                                                // и он готов к принятию самого файла
 
 
-    // Открываем файл для чтения и отправляем файл
-    if (image->open(QFile::ReadOnly)) {
+    // ## Если удалось открыть файл для чтения
+    if (file->open(QFile::ReadOnly)) {
+
+
+        // Отправляем имя файла (пока поддерживаются только имена в виде латиницы)
+        QFileInfo   fileInfo {file->fileName()};
+        QString     localFileName {fileInfo.fileName()};
 
         buffer.clear();
-
-        // Отправляем имя файла
-        QFileInfo fileInfo(image->fileName());
-        QString localFileName {fileInfo.fileName()};
-
         buffer.append(localFileName.toLatin1());
-
         qDebug() << "Buffer name as C-string: " << buffer;
+
         mb_socket->write(buffer);
         mb_socket->waitForBytesWritten();
 
@@ -61,30 +73,31 @@ bool SendTaskWindow::sendImage(QString fileName)
         buffer.clear();
         mb_socket->waitForReadyRead();
         buffer = mb_socket->readAll();
+
         QString qBuffer {buffer};
         qDebug() << "Received signal from server: " << qBuffer;
-
         if (0 != QString::compare(qBuffer, sigFileNameReceived, Qt::CaseSensitive)) {
             qDebug() << "File name didn't received by server";
             return false;
         }
+        else {} // Nothing to do
+
         // Если имя сервером получено, отправляем сам файл
-        else {
-            qint64 imageSize {image->size()};
-            qint64  totalBytesRead {0};
+        qint64  fileSize        {file->size()};
+        qint64  totalBytesRead  {0};
 
-            while (totalBytesRead < imageSize) {
-               buffer.clear();
+        // Цикл осуществляет чтение-отправку файла порциями.
+        while (totalBytesRead < fileSize) {
+           buffer.clear();
 
-               buffer = image->read(portion);
-               totalBytesRead += buffer.size();
+           buffer = file->read(portion);
+           totalBytesRead += buffer.size();
 
-               mb_socket->write(buffer);
-               mb_socket->waitForBytesWritten();
-            }
-            qDebug() << "File successfully transfered!" << fileName;
-            return true;
+           mb_socket->write(buffer);
+           mb_socket->waitForBytesWritten();
         }
+        qDebug() << "File successfully transfered!";
+        return true;
     }
     else {
         qDebug() << "Can't open file: " << fileName;

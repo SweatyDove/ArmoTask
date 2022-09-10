@@ -8,23 +8,32 @@
 #include <QFile>
 #include "clientwindow.hpp"
 
+
+#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"        // Сигнал, который сервер отправляет клиенту,
+                                                                    // когда получает "имя_файла"
+
+
+// #### Отдельное пространство имен для графического интерфейса
 namespace Ui {
 class SendTaskWindow;
 }
 
+// #### Класс, реализующий действия по отправке файла на сервер
+// ####
 class SendTaskWindow : public QDialog
 {
     Q_OBJECT
+
+private:
+    Ui::SendTaskWindow*     mb_userInterface;
+    QTcpSocket*             mb_socket;
 
 public:
     explicit SendTaskWindow(QWidget *parent = nullptr, QTcpSocket* socket = nullptr);
     ~SendTaskWindow();
 
-    bool sendImage(QString fileName);
+    bool sendFile(QString fileName);
 
-private:
-    Ui::SendTaskWindow *ui;
-    QTcpSocket* mb_socket;
 
 private slots:
     void browse();

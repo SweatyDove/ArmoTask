@@ -1,53 +1,50 @@
 #include "myserver.hpp"
 #include "ui_myserver.h"
 
-#define   DEFAULT_PORT      9000
-#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
-
-
-#include <QMessageBox>
-#include <QDir>
-
-// Конструктор класса Server
+// #### Конструктор класса Server
+// ####
 MyServer::MyServer(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MyServer)
+    QMainWindow         {parent},
+    mb_userInterface    {new Ui::MyServer}
 {
-    ui->setupUi(this);
-    // Связываем сигнал от нажатия клавиши @launchButton с ЭТИМ объектом (MyServer) и его
-    // слотом-функцией launchServer().
-    connect(ui->launchButton, SIGNAL(clicked()), this, SLOT(launchServer()));
-
+    // ## Инициализируем графический интерфейс сервера (окно с выбором порта) и связываем
+    // ## СИГНАЛ от нажатия клавиши [Launch] с функцией-СЛОТОМ @launchServer()
+    mb_userInterface->setupUi(this);
+    connect(mb_userInterface->launchButton, SIGNAL(clicked()), this, SLOT(launchServer()));
 }
 
+// #### Деструктор класса
+// ####
 MyServer::~MyServer()
 {
-    delete ui;
-    delete server;
+    delete mb_userInterface;
+    if (mb_server != nullptr) {
+        delete mb_server;
+    }
+    else {} // Nothing to do
 }
 
-
+// #### Функция-СЛОТ, запускающая сервер
+// ####
 void MyServer::launchServer()
 {
+    QString     portNumberStr   {mb_userInterface->portNumberEdit->text()};
+    int         portNumber      {portNumberStr.toInt()};
 
-    // Создаём сервер
-    server = new QTcpServer(this);
 
+    // #1 Инициализируем сервер
+    mb_server = new QTcpServer(this);
 
-    QString portNumberStr   = ui->portNumberEdit->text();
-    int portNumber          = portNumberStr.toInt();
-
-    // Запускаем сервер на прослушивание
-    if (!server->listen(QHostAddress::Any, portNumber)) {
+    // ## Запускаем сервер на прослушивание всех айпишников на указанном порту
+    if (!mb_server->listen(QHostAddress::Any, portNumber)) {
         qDebug() << "Server could not start!";
     }
     else {
         qDebug() << "Server has launched!";
-
-        // Есть объект @server класса <QTcpServer * >. У этого объекта есть метод newConnection() (библиотечный).
-        // Далее есть мой объект <MyServer> и его метод setConnection(). И как только новое соединение доступно,
-        // испускается СИГНАЛ и запускается функция-СЛОТ.
-        connect(server, SIGNAL(newConnection()), this, SLOT(setConnection()));
+        // В случае удачного запуска сервера ждём запрос на соединение от клиента.
+        // Как только появляется доступное соединение, испускается СИГНАЛ, который будет ловить
+        // функция-СЛОТ setConnection()
+        connect(mb_server, SIGNAL(newConnection()), this, SLOT(setConnection()));
     }
 
     return;
@@ -55,15 +52,16 @@ void MyServer::launchServer()
 
 
 
-// №№№№ Ниже определена функция-слот, отрабатывающая в случае появления доступного соединения
+// #### Ниже определена функция-слот, отрабатывающая в случае появления доступного соединения
+// ####
 void MyServer::setConnection()
 {    
-    QByteArray buffer;
-    qint64 portion {2048};
+    QByteArray  buffer;                 // Буфер для отправки/получения данных через сокет
+    qint64      portion {2048};         // Размер порций (в байтах), записываемых в буффер при получении файла
 
 
-    // №№№№ Определяем новое соединение
-    QTcpSocket* socket {server->nextPendingConnection()};
+    // #1 Инициализируем новое соединение
+    QTcpSocket* socket {mb_server->nextPendingConnection()};
     if (socket != 0) {
         qDebug() << "Connection with the client established!";
 
@@ -74,13 +72,15 @@ void MyServer::setConnection()
         QString qBuffer {buffer};
         qDebug() << "Received file name: " << qBuffer;
 
-        // Если имя файла получено - создать новый с таким же именем
-        QFile* image = new QFile(qBuffer);
-        if (image->open(QFile::Append)) {
+        // Если имя файла получено - создать новый с таким же именем и открыть его в режиме
+        // добавления
+        QFile* file = new QFile(qBuffer);
+        if (file->open(QFile::Append)) {
 
-            // В случае успеха отправляем сигнал клиенту, что имя получено и  готовы
-            // принять непосредственно файл
+            // В случае успеха отправляем сигнал клиенту, что имя получено и готовы
+            // принять сам файл
             QString sigFileNameReceived {SIG_FILE_NAME_RECEIVED};
+
             buffer.clear();
             buffer.append(sigFileNameReceived.toLatin1());
             socket->write(buffer);
@@ -96,16 +96,15 @@ void MyServer::setConnection()
                     break;
                 }
                 else {
-                    image->write(buffer);
+                    file->write(buffer);
                 }
             }
+            file->close();
 
-            image->close();
 
             // #### Операции по открытию файла
-
             // #1 Получить абсолютный путь файла
-            QFileInfo fileInfo(image->fileName());
+            QFileInfo fileInfo(file->fileName());
             QString absFilePath = fileInfo.absoluteFilePath();
             qDebug() << "Absolute file path: " << absFilePath;
 
@@ -122,6 +121,7 @@ void MyServer::setConnection()
 
         }
         else {} // Nothing to do
+        delete file;
 
         socket->close();
     }

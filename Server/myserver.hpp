@@ -9,31 +9,38 @@
 #include <QDesktopServices>
 #include <QUrl>
 
+#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
 
 
+#include <QMessageBox>
+#include <QDir>
+
+
+
+// #### Отельное пространство имен для графического интерфейса
 QT_BEGIN_NAMESPACE
 namespace Ui { class MyServer; }
 QT_END_NAMESPACE
 
 
 
-
+// #### Класс реализующий функционал по инициализации сервера и принятию им файла
+// #### (с последующим автоматическим открытием)
 class MyServer : public QMainWindow {
-    // Объевляем макрос, к-й нужен для работы с Сигналами/Слотами
-    Q_OBJECT
+
+// Объявляем макрос, к-й нужен для работы с Сигналами/Слотами
+Q_OBJECT
 
 public:
-    int portNumber;
 
 private:
-    Ui::MyServer    *ui;
-    QTcpServer      *server;
+    Ui::MyServer*   mb_userInterface;
+    QTcpServer*     mb_server;
+    //int             mb_portNumber;
 
 public:
     MyServer(QWidget *parent = nullptr);
     ~MyServer();
-
-    //QString MyServer::convertUrlToNativeFilePath(const QUrl& urlStylePath) const;
 
 
 private slots:
