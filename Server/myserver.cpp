@@ -1,6 +1,15 @@
 #include "myserver.hpp"
 #include "ui_myserver.h"
 
+
+namespace my_signals {
+
+QString    FILE_SIZE_RECEIVED          {"FILE_SIZE_RECEIVED"};
+QString    FILE_EXTENSION_RECEIVED     {"FILE_EXTENSION_RECEIVED"};
+QString    FILE_RECEIVED               {"FILE_RECEIVED"};
+
+}
+
 // #### Конструктор класса Server
 // ####
 MyServer::MyServer(QWidget *parent) :
@@ -37,10 +46,10 @@ void MyServer::launchServer()
 
     // ## Запускаем сервер на прослушивание всех айпишников на указанном порту
     if (!mb_server->listen(QHostAddress::Any, portNumber)) {
-        qDebug() << "Server could not start!";
+        qDebug() << "[SERVER]: could not start!";
     }
     else {
-        qDebug() << "Server has launched!";
+        qDebug() << "[SERVER]: has successfully launched!";
         // В случае удачного запуска сервера ждём запрос на соединение от клиента.
         // Как только появляется доступное соединение, испускается СИГНАЛ, который будет ловить
         // функция-СЛОТ setConnection()
@@ -52,25 +61,130 @@ void MyServer::launchServer()
 
 
 
-// #### Ниже определена функция-слот, отрабатывающая в случае появления доступного соединения
+// #### Ниже определена функция-СЛОТ, отрабатывающая в случае появления доступного соединения
 // ####
 void MyServer::setConnection()
 {    
     QByteArray  buffer;                 // Буфер для отправки/получения данных через сокет
-    qint64      portion {2048};         // Размер порций (в байтах), записываемых в буффер при получении файла
+    qint64      portion {10000};         // Размер порций (в байтах), записываемых в буффер при получении файла
+
+
+    // ## Работа с обычным массивом данных
+
+    // ## Инициализируем новое соединение
+    QTcpSocket* socket {mb_server->nextPendingConnection()};
+    if (socket != 0) {
+        qDebug() << "[SERVER]: connection with the client established!";
+
+        // #1 Получить размер, который нужно выделить для файла
+        buffer.clear();
+        socket->waitForReadyRead();
+        buffer = socket->readAll();
+        qint64 fileSize {buffer.toLongLong()};
+        if (fileSize == 0) {
+            qDebug() << "[SERVER]: didn't get correct file size.";
+            return;
+        }
+        else {
+            // В случае успеха, отправляем клиенту сигнал, что размер файла получен
+            qDebug() << "[SERVER]: has received file size:" << fileSize << "bytes";
+            buffer.clear();
+            buffer.append(my_signals::FILE_SIZE_RECEIVED.toLatin1());
+            socket->write(buffer);
+            socket->waitForBytesWritten();
+        }
+
+        // #2 Получить расширение файла
+        buffer.clear();
+        socket->waitForReadyRead();
+        buffer = socket->readAll();
+        QString fileExtension {QString::fromLatin1(buffer)};
+        if (fileExtension.size() == 0) {
+            qDebug() << "[SERVER]: didn't get file extension.";
+            return;
+        }
+        else {
+            // В случае успеха, отправляем клиенту сигнал, что расширение файла получено
+            qDebug() << "[SERVER]: has received file extension: " << fileExtension;
+            buffer.clear();
+            buffer.append(my_signals::FILE_EXTENSION_RECEIVED.toLatin1());
+            socket->write(buffer);
+            socket->waitForBytesWritten();
+        }
+
+        // #3 Создать массив QByteArray указанной длины
+
+        QByteArray fileBuffer {fileSize, '\0'};
+        int        attempt {0};
+        int        maxAttempt {10};
+        qDebug() << "[SERVER]: file buffer has created!";
+
+        // #4 Заполнить массив
+        qint64 readSize {0};
+        while (readSize < fileSize && attempt < maxAttempt) {
+            buffer.clear();
+
+            socket->waitForReadyRead();
+            buffer = socket->read(portion);
+            readSize += buffer.size();
+
+            attempt = (buffer.size() > 0) ? 0 : attempt + 1;
+
+            fileBuffer.append(buffer);
+            qDebug() << "read bytes:" << readSize;
+        }
+        qDebug() << "[SERVER]: file buffer was filled!";
+
+        if (readSize < fileSize) {
+            qDebug() << "[SERVER]: didn't receive whole file!";
+            qDebug() << "          Declared file size = " << fileSize << "bytes.";
+            qDebug() << "          Received file size = " << readSize << "bytes.";
+            return;
+        }
+        else {
+            // В случае успеха, отправляем клиенту сигнал, что файл получен
+            qDebug() << "[SERVER]: the file successfully received!";
+            qDebug() << "          Declared file size = " << fileSize << "bytes.";
+            qDebug() << "          Received file size = " << readSize << "bytes.";
+
+            buffer.clear();
+            buffer.append(my_signals::FILE_RECEIVED.toLatin1());
+            socket->write(buffer);
+            socket->waitForBytesWritten();
+        }
+        // #5 Получить объект QImage из QByteArray
+        QImage fileImage {};
+        fileImage.fromData(fileBuffer);
+        qDebug() << "[SERVER]: initialize fileImage";
+
+        // #6 Отобразить QImage через QLable
+        QLabel *imageLable {new QLabel()};
+        imageLable->setText("Received image");
+        imageLable->setPixmap(QPixmap::fromImage(fileImage));
+        imageLable->showFullScreen();
+        qDebug() << "[SERVER]: show image";
+    }
+    else {
+        qDebug() << "[SERVER]: couldn't establish a connection...";
+    }
+
+    return;
+}
+
 
 
     // #1 Инициализируем новое соединение
+    /*
     QTcpSocket* socket {mb_server->nextPendingConnection()};
     if (socket != 0) {
-        qDebug() << "Connection with the client established!";
+        qDebug() << "[SERVER]: connection with the client established!";
 
         // Сперва получаем имя файла
         buffer.clear();
         socket->waitForReadyRead();
         buffer = socket->readAll();
         QString qBuffer {buffer};
-        qDebug() << "Received file name: " << qBuffer;
+        qDebug() << "[SERVER]: has received file name: " << qBuffer;
 
         // Если имя файла получено - создать новый с таким же именем и открыть его в режиме
         // добавления
@@ -102,19 +216,26 @@ void MyServer::setConnection()
             file->close();
 
 
+            // #### Отображение файла средствами Qt
+            // QLable - отображение картинки
+            // QPixMap - в этом формате предаем картинку на QLable
+            QLabel label ("<img src='");
+
+
+
             // #### Операции по открытию файла
             // #1 Получить абсолютный путь файла
             QFileInfo fileInfo(file->fileName());
             QString absFilePath = fileInfo.absoluteFilePath();
-            qDebug() << "Absolute file path: " << absFilePath;
+            qDebug() << "[SERVER]: absolute file path: " << absFilePath;
 
             // #2 Конвертировать в нативный путь для данной ОС
             QString nativeAbsFilePath = QDir::toNativeSeparators(absFilePath);
-            qDebug() << "Native absolute file path: " << nativeAbsFilePath;
+            qDebug() << "[SERVER]: native absolute file path: " << nativeAbsFilePath;
 
             // #3 Получить из этого пути QURl
             QUrl fileQUrl = QUrl::fromLocalFile(nativeAbsFilePath);
-            qDebug() << "QUrl of file: " << fileQUrl;
+            qDebug() << "[SERVER]: QUrl of the file: " << fileQUrl;
 
             // #4 Открыть файл стандартными средствами ОС
             QDesktopServices::openUrl(fileQUrl);
@@ -126,8 +247,10 @@ void MyServer::setConnection()
         socket->close();
     }
     else {
-        qDebug() << "Couldn't establish a connection...";
+        qDebug() << "[SERVER]: couldn't establish a connection...";
     }
 
     return;
 }
+
+*/

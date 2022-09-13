@@ -8,12 +8,12 @@
 #include <QThread>
 #include <QDesktopServices>
 #include <QUrl>
-
-#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
-
-
 #include <QMessageBox>
 #include <QDir>
+#include <QLabel>
+
+
+#define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
 
 
 

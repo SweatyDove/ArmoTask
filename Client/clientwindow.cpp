@@ -45,7 +45,7 @@ void ClientWindow::connectToServer()
 
     // #2 Ждём 3 сек на получение подтверждения соединения
     if (mb_socket->waitForConnected(3000)) {
-        qDebug() << "\nSuccessfully connected to server [" << IPv4Str << ':' << portNumber << "].";
+        qDebug() << "\n[CLIENT]: successfully connected to server [" << IPv4Str << ':' << portNumber << "].";
 
         // В случае успеха - инициализируем объект класса @SendTaskWindow (т.е. новое окно),
         // которое обрабатывает передачу файла на сервер
