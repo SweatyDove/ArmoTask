@@ -5,9 +5,11 @@
 namespace my_signals {
 
 QString    FILE_SIZE_RECEIVED          {"FILE_SIZE_RECEIVED"};
+//QString    FILE_SIZE_NOT_RECEIVED      {"FILE_SIZE_NOT_RECEIVED"};
 QString    FILE_EXTENSION_RECEIVED     {"FILE_EXTENSION_RECEIVED"};
+//QString    FILE_EXTENSION_NOT_RECEIVED {"FILE_EXTENSION_NOT_RECEIVED"};
 QString    FILE_RECEIVED               {"FILE_RECEIVED"};
-
+//QString    FILE_NOT_RECEIVED           {"FILE_NOT_RECEIVED"};
 
 }
 
@@ -21,7 +23,7 @@ SendTaskWindow::SendTaskWindow(QWidget *parent, QTcpSocket* socket) :
     // #1 Инициализируем окно интерфейса и связываем СИГНАЛ от нажатия на клавишу "Browse"
     // ## с соответствующей функцией-СЛОТОМ
     mb_userInterface->setupUi(this);
-    connect(mb_userInterface->browseButton, SIGNAL(clicked()), this, SLOT(browse()));
+    connect(mb_userInterface->browseButton, SIGNAL(clicked()), this, SLOT(browse()));    
 
 }
 
@@ -41,7 +43,7 @@ SendTaskWindow::~SendTaskWindow()
 // ####
 void SendTaskWindow::browse()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, "Open File", QDir::currentPath());
+    QString fileName {QFileDialog::getOpenFileName(this, "Open File", QDir::currentPath())};
 
     // Отправляем файл
     if (!fileName.isEmpty()) {
@@ -49,6 +51,9 @@ void SendTaskWindow::browse()
        sendFile(fileName);
     }
     else {} // Nothing to do
+
+    //SendTaskWindow::close();
+    return;
 }
 
 
@@ -57,10 +62,10 @@ bool SendTaskWindow::sendFile(QString fileName)
 {
 
     QFile*      file    {new QFile(fileName)};      // Указатель на файл
-    qint64      portion {10000};                     // Размер порции для отправки через сокет (в байтах)
+    qint64      portion {2048};                     // Размер порции для отправки через сокет (в байтах)
     QByteArray  buffer;                             // Буффер, который будет отправляться
 
-    QString     sigFileNameReceived {SIG_FILE_NAME_RECEIVED};   // Сигнал, говорящий о том, что имя файла сервером получено
+    //QString     sigFileNameReceived {SIG_FILE_NAME_RECEIVED};   // Сигнал, говорящий о том, что имя файла сервером получено
                                                                 // и он готов к принятию самого файла
 
 
@@ -149,7 +154,6 @@ bool SendTaskWindow::sendFile(QString fileName)
 
            writeSize += buffer.size();
            attempt = (buffer.size() > 0) ? 0 : attempt + 1;
-           qDebug() << "write bytes:" << writeSize;
 
         }
         qDebug() << "[CLIENT]: file size  = " << fileSize << "bytes.";
@@ -178,69 +182,3 @@ bool SendTaskWindow::sendFile(QString fileName)
 
     return true;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-        // Отправляем имя файла (пока поддерживаются только имена в виде латиницы)
-        QFileInfo   fileInfo {file->fileName()};
-        QString     localFileName {fileInfo.fileName()};
-
-        buffer.clear();
-        buffer.append(localFileName.toLatin1());
-        qDebug() << "[CLIENT]: going to send file-name as a C-string: " << buffer;
-
-        mb_socket->write(buffer);
-        mb_socket->waitForBytesWritten();
-
-        // Ждём сигнал от сервера, что имя получено
-        buffer.clear();
-        mb_socket->waitForReadyRead();
-        buffer = mb_socket->readAll();
-
-        QString qBuffer {buffer};
-        qDebug() << "[CLIENT]: received signal from server: " << qBuffer;
-        if (0 != QString::compare(qBuffer, sigFileNameReceived, Qt::CaseSensitive)) {
-            qDebug() << "[CLIENT]: the file name wasn't received by the server!";
-            return false;
-        }
-        else {} // Nothing to do
-
-        // Если имя сервером получено, отправляем сам файл
-        qint64  fileSize        {file->size()};
-        qint64  totalBytesRead  {0};
-
-        // Цикл осуществляет чтение-отправку файла порциями.
-        while (totalBytesRead < fileSize) {
-           buffer.clear();
-
-           buffer = file->read(portion);
-           totalBytesRead += buffer.size();
-
-           mb_socket->write(buffer);
-           mb_socket->waitForBytesWritten();
-        }
-        qDebug() << "[CLIENT]: the file successfully transfered!";
-        return true;
-    }
-    else {
-        qDebug() << "[CLIENT]:Can't open the file: " << fileName;
-        return false;
-    }
-
-}
-*/

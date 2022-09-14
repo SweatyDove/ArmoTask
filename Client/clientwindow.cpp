@@ -50,7 +50,6 @@ void ClientWindow::connectToServer()
         // В случае успеха - инициализируем объект класса @SendTaskWindow (т.е. новое окно),
         // которое обрабатывает передачу файла на сервер
         SendTaskWindow sendTaskWindow {nullptr, mb_socket};
-        //sendTaskWindow.open();
         sendTaskWindow.exec();
 
         mb_socket->close();

@@ -1,5 +1,6 @@
 #include "myserver.hpp"
 #include "ui_myserver.h"
+#include "displayimage.hpp"
 
 
 namespace my_signals {
@@ -66,7 +67,7 @@ void MyServer::launchServer()
 void MyServer::setConnection()
 {    
     QByteArray  buffer;                 // Буфер для отправки/получения данных через сокет
-    qint64      portion {10000};         // Размер порций (в байтах), записываемых в буффер при получении файла
+    qint64      portion {2048};         // Размер порций (в байтах), записываемых в буффер при получении файла
 
 
     // ## Работа с обычным массивом данных
@@ -113,56 +114,44 @@ void MyServer::setConnection()
         }
 
         // #3 Создать массив QByteArray указанной длины
-
-        QByteArray fileBuffer {fileSize, '\0'};
-        int        attempt {0};
-        int        maxAttempt {10};
-        qDebug() << "[SERVER]: file buffer has created!";
+        QByteArray fileBuffer;
 
         // #4 Заполнить массив
-        qint64 readSize {0};
-        while (readSize < fileSize && attempt < maxAttempt) {
-            buffer.clear();
+        qint64 totalBytesRead {0};
 
-            socket->waitForReadyRead();
-            buffer = socket->read(portion);
-            readSize += buffer.size();
 
-            attempt = (buffer.size() > 0) ? 0 : attempt + 1;
+        while (totalBytesRead < fileSize) {
 
-            fileBuffer.append(buffer);
-            qDebug() << "read bytes:" << readSize;
+            if (true == socket->waitForReadyRead()) {
+                fileBuffer.append(socket->readAll());
+                totalBytesRead = fileBuffer.size();
+            }
+            else {} // Nothing to do
+
         }
-        qDebug() << "[SERVER]: file buffer was filled!";
 
-        if (readSize < fileSize) {
+        if (totalBytesRead < fileSize) {
             qDebug() << "[SERVER]: didn't receive whole file!";
             qDebug() << "          Declared file size = " << fileSize << "bytes.";
-            qDebug() << "          Received file size = " << readSize << "bytes.";
+            qDebug() << "          Received file size = " << totalBytesRead << "bytes.";
             return;
         }
         else {
             // В случае успеха, отправляем клиенту сигнал, что файл получен
             qDebug() << "[SERVER]: the file successfully received!";
             qDebug() << "          Declared file size = " << fileSize << "bytes.";
-            qDebug() << "          Received file size = " << readSize << "bytes.";
+            qDebug() << "          Received file size = " << totalBytesRead << "bytes.";
 
             buffer.clear();
             buffer.append(my_signals::FILE_RECEIVED.toLatin1());
             socket->write(buffer);
             socket->waitForBytesWritten();
         }
-        // #5 Получить объект QImage из QByteArray
-        QImage fileImage {};
-        fileImage.fromData(fileBuffer);
-        qDebug() << "[SERVER]: initialize fileImage";
 
-        // #6 Отобразить QImage через QLable
-        QLabel *imageLable {new QLabel()};
-        imageLable->setText("Received image");
-        imageLable->setPixmap(QPixmap::fromImage(fileImage));
-        imageLable->showFullScreen();
-        qDebug() << "[SERVER]: show image";
+        // #5 Отображаем картинку в новом окне
+        DisplayImage image {nullptr, fileBuffer, fileExtension.toStdString().c_str()};
+        image.exec();
+
     }
     else {
         qDebug() << "[SERVER]: couldn't establish a connection...";
@@ -170,6 +159,19 @@ void MyServer::setConnection()
 
     return;
 }
+
+
+// #5 Получить объект QImage из QByteArray
+//        QImage fileImage {};
+//        fileImage.fromData(fileBuffer);
+//        qDebug() << "[SERVER]: initialize fileImage";
+
+//        // #6 Отобразить QImage через QLable
+//        QLabel *imageLable {new QLabel()};
+//        imageLable->setText("Received image");
+//        imageLable->setPixmap(QPixmap::fromImage(fileImage));
+//        imageLable->showFullScreen();
+//        qDebug() << "[SERVER]: show image";
 
 
 

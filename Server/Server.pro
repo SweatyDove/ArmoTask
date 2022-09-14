@@ -18,13 +18,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    displayimage.cpp \
     main.cpp \
     myserver.cpp
 
 HEADERS += \
+	displayimage.hpp \
 	myserver.hpp
 
 FORMS += \
+	displayimage.ui \
 	myserver.ui
 
 # Default rules for deployment.
