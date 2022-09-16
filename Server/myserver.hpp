@@ -10,7 +10,7 @@
 #include <QUrl>
 #include <QMessageBox>
 #include <QDir>
-#include <QLabel>
+
 
 
 #define  SIG_FILE_NAME_RECEIVED     "SIG_FILE_NAME_RECEIVED"
@@ -46,6 +46,7 @@ public:
 private slots:
     void launchServer();
     void setConnection();
+    void getImage(QTcpSocket* socket);
 
 };
 

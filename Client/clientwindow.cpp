@@ -38,6 +38,9 @@ void ClientWindow::connectToServer()
 
     QString     IPv4Str         {mb_userInterface->IPv4LineEdit->text()};                   // IP-адресс же берём в текстовом виде (семейство IPv4)
 
+    // На время отладки
+    //portNumber = 1234;
+    //IPv4Str = "127.0.0.1";
 
     // #1 Выделяем под сокет память и устанавливаем через него соединение с сервером
     mb_socket = new QTcpSocket(this);
@@ -50,10 +53,11 @@ void ClientWindow::connectToServer()
         // В случае успеха - инициализируем объект класса @SendTaskWindow (т.е. новое окно),
         // которое обрабатывает передачу файла на сервер
         SendTaskWindow sendTaskWindow {nullptr, mb_socket};
-        sendTaskWindow.exec();
+        qDebug() << sendTaskWindow.exec();
 
-        mb_socket->close();
+        mb_socket->disconnectFromHost();
         delete mb_socket;
+        mb_socket = nullptr;
     }
     else {
         qDebug() << "\nCouldn't connect to server [" << IPv4Str << ':' << portNumber << "].";
